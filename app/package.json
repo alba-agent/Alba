@@ -1,0 +1,31 @@
+{
+  "name": "@albalink/app",
+  "version": "1.0.0",
+  "description": "ALBA — full desktop app with dashboard, voice, and agent.",
+  "type": "module",
+  "main": "server/server.js",
+  "bin": {
+    "alba": "bin/alba"
+  },
+  "files": [
+    "server",
+    "dashboard/dist",
+    "native",
+    "bin",
+    "scripts",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "cd dashboard && npm run build",
+    "start": "node server/server.js",
+    "prepublishOnly": "npm run build",
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "dependencies": {
+    "@albalink/agent": "file:../../npm",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

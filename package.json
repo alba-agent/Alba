@@ -1,0 +1,16 @@
+{
+  "name": "alba-local",
+  "version": "1.0.0",
+  "description": "ALBA — local AI agent platform with dashboard, voice, and sub-agent swarm.",
+  "private": true,
+  "scripts": {
+    "build:agent": "cd npm && npm run build",
+    "build:dashboard": "cd app/dashboard && npm run build",
+    "build": "npm run build:agent && npm run build:dashboard",
+    "dev:agent": "cd npm && npm run dev",
+    "dev:dashboard": "cd app/dashboard && npm run dev",
+    "start": "bash start.sh"
+  }
+}
+
+
