@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+/**
+ * alba-mcp — MCP server entry point.
+ * Uses tsx for transparent TypeScript support at runtime.
+ * No compilation step needed when running from source.
+ */
+import { createRequire } from "module";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import { existsSync } from "fs";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+
+// Parse args
+const args = process.argv.slice(2);
+let extensionPath: string | null = null;
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === "--extension" && args[i + 1]) extensionPath = args[i + 1]!;
+}
+
+// Prefer pre-built dist/ if available, otherwise run TypeScript source via tsx
+const distEntry = join(__dirname, "..", "dist", "mcp", "cli.js");
+const srcEntry = join(__dirname, "..", "src", "mcp", "cli.ts");
+
+async function run() {
+  if (existsSync(distEntry)) {
+    const { runServer } = await import(distEntry);
+    await runServer(extensionPath);
+  } else if (existsSync(srcEntry)) {
+    const { register } = await import("tsx/esm");
+    const { runServer } = await import(srcEntry);
+    await runServer(extensionPath);
+  } else {
+    console.error("ALBA: could not find dist/mcp/cli.js or src/mcp/cli.ts");
+    process.exit(1);
+  }
+}
+
+run().catch((e) => {
+  console.error("MCP server error:", e.message);
+  process.exit(1);
+});
