@@ -4,6 +4,7 @@ import { useAgent } from "../hooks/useAgent";
 import { Cpu, Brain, MessageSquare, Mic, Zap, Shield, ArrowRight, Loader2, Wifi, WifiOff, CheckSquare, Square, Plus, ChevronDown, ChevronUp, Calendar, DollarSign, Activity, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import ActivityFeed from "../components/ActivityFeed";
+import TokenTracker from "../components/TokenTracker";
 
 // ── Mini Chart (real data) ──────────────────────────────────────────────────
 function MiniChart({ data, loading }: { data: Array<{ day: string; value: number }>; loading: boolean }) {
@@ -211,14 +212,23 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
             <BudgetCard data={analytics} loading={analyticsLoading} />
             <MiniChart data={analytics?.weekData || []} loading={analyticsLoading} />
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold text-alba-muted uppercase tracking-wider">Quick Actions</h3>
+            <TokenTracker tokenAddress="gRWRJAXPnjBwUag6XjYtVJkW6WjbMkHJaUA7gmvpump" chainId="solana" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+            <TasksSection />
+            <CalendarWidget />
+          </div>
+
+          <div className="mb-8">
+            <h3 className="text-xs font-semibold text-alba-muted uppercase tracking-wider mb-3">Quick Actions</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { title: "Chat", desc: "Talk to ALBA", icon: MessageSquare, path: "/chat" },
                 { title: "Agents", desc: "Sub-agent orchestration", icon: Cpu, path: "/agents" },
                 { title: "Analytics", desc: "Usage & spending", icon: Zap, path: "/analytics" },
                 { title: "Files", desc: "Browse workspace", icon: Brain, path: "/files" },
-              ].map((feat, i) => (
+              ].map((feat) => (
                 <Link key={feat.title} to={feat.path} className="glass rounded-lg p-3 flex items-center gap-3 hover:border-alba-accent/20 transition-all group">
                   <div className="w-8 h-8 rounded-lg bg-alba-accent/10 flex items-center justify-center shrink-0 group-hover:bg-alba-accent/20 transition-colors"><feat.icon size={14} className="text-alba-accent" /></div>
                   <div className="flex-1 min-w-0"><p className="text-sm font-medium">{feat.title}</p><p className="text-[10px] text-alba-muted truncate">{feat.desc}</p></div>
@@ -226,11 +236,6 @@ export default function Dashboard() {
                 </Link>
               ))}
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-            <TasksSection />
-            <CalendarWidget />
           </div>
 
           <div className="mb-8">

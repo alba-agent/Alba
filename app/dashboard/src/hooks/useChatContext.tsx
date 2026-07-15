@@ -2,17 +2,41 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext, Re
 
 // ── Types ───────────────────────────────────────────────────────────────────
 export interface ChatMessage {
-  id: string; role: "user" | "assistant" | "tool" | "error"; content: string; ts: number;
-  toolName?: string; toolData?: any; toolState?: string;
-  command?: string; output?: string; filePath?: string; oldContent?: string; newContent?: string;
-  planTitle?: string; planSummary?: string; query?: string; searchResults?: any[];
+  id: string;
+  role: "user" | "assistant" | "tool" | "error";
+  content: string;
+  ts: number;
+  toolName?: string;
+  toolData?: unknown;
+  toolState?: string;
+  command?: string;
+  output?: string;
+  filePath?: string;
+  oldContent?: string;
+  newContent?: string;
+  planTitle?: string;
+  planSummary?: string;
+  query?: string;
+  searchResults?: unknown[];
 }
 
 export interface SessionSummary {
-  id: string; title: string; lastActive: number; messageCount: number;
+  id: string;
+  title: string;
+  lastActive: number;
+  messageCount: number;
 }
 
-interface ChatState {
+// ── Context ───────────────────────────────────────────────────────────────────
+interface ChatContextType {
+  // Tab-based state
+  tabs: Array<{ id: string; name: string }>;
+  activeTabId: string;
+  setActiveTabId: (id: string) => void;
+  addTab: (name?: string) => string;
+  setTabs: (tabs: Array<{ id: string; name: string }>) => void;
+
+  // Legacy single-session state (used by Chat.tsx)
   sessionId: string;
   userMessages: ChatMessage[];
   assistantMessages: Array<{ id: string; content: string; ts: number }>;
@@ -22,9 +46,8 @@ interface ChatState {
   messages: ChatMessage[];
   sessions: SessionSummary[];
   queueLength: number;
-}
 
-interface ChatContextType extends ChatState {
+  // Setters
   setSessionId: (id: string) => void;
   setUserMessages: (msgs: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
   setAssistantMessages: (msgs: Array<{ id: string; content: string; ts: number }> | ((prev: Array<{ id: string; content: string; ts: number }>) => Array<{ id: string; content: string; ts: number }>)) => void;
@@ -37,35 +60,67 @@ interface ChatContextType extends ChatState {
 
 const ChatCtx = createContext<ChatContextType | null>(null);
 
-// ── SESSION ID ──────────────────────────────────────────────────────────────
-const STORAGE_KEY = "alba_active_session";
-function getStoredSessionId(): string {
-  try { return localStorage.getItem(STORAGE_KEY) || `session-${Date.now()}`; } catch { return `session-${Date.now()}`; }
+// ── Storage ───────────────────────────────────────────────────────────────────
+const SESSION_KEY = "alba_active_session";
+const TABS_KEY = "alba_chat_tabs";
+
+function loadSessionId(): string {
+  try {
+    return localStorage.getItem(SESSION_KEY) || `session-${Date.now()}`;
+  } catch {
+    return `session-${Date.now()}`;
+  }
 }
+
 function storeSessionId(id: string) {
-  try { localStorage.setItem(STORAGE_KEY, id); } catch { /* */ }
+  try {
+    localStorage.setItem(SESSION_KEY, id);
+  } catch { /* */ }
 }
 
 // ── Provider ────────────────────────────────────────────────────────────────
 export function ChatProvider({ children }: { children: ReactNode }) {
-  const [sessionId, setSessionIdState] = useState(getStoredSessionId);
+  const [sessionId, setSessionIdState] = useState(loadSessionId);
   const [userMessages, setUserMessages] = useState<ChatMessage[]>([]);
   const [assistantMessages, setAssistantMessages] = useState<Array<{ id: string; content: string; ts: number }>>([]);
   const [toolMessages, setToolMessages] = useState<ChatMessage[]>([]);
-  const [streamingText, setStreamingText] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [queueLength, setQueueLength] = useState(0);
 
+  // Tab state (for future multi-tab feature)
+  const [tabs, setTabs] = useState<Array<{ id: string; name: string }>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(TABS_KEY) ?? "[]") || [{ id: sessionId, name: "Chat" }];
+    } catch {
+      return [{ id: sessionId, name: "Chat" }];
+    }
+  });
+  const [activeTabId, setActiveTabIdState] = useState(sessionId);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TABS_KEY, JSON.stringify(tabs));
+    } catch { /* */ }
+  }, [tabs]);
+
+  const addTab = useCallback((name?: string) => {
+    const id = `tab-${Date.now()}`;
+    setTabs(prev => [...prev, { id, name: name ?? `Chat ${prev.length + 1}` }]);
+    setActiveTabIdState(id);
+    return id;
+  }, []);
+
+  const setActiveTabId = useCallback((id: string) => {
+    setActiveTabIdState(id);
+  }, []);
+
   const setSessionId = useCallback((id: string) => {
     storeSessionId(id);
     setSessionIdState(id);
-    // Reset messages when switching sessions
     setUserMessages([]);
     setAssistantMessages([]);
     setToolMessages([]);
-    setStreamingText("");
-    setIsThinking(false);
   }, []);
 
   // Merge all messages
@@ -76,15 +131,28 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   ].sort((a, b) => a.ts - b.ts);
 
   const value: ChatContextType = {
-    sessionId, setSessionId,
-    userMessages, setUserMessages,
-    assistantMessages, setAssistantMessages,
-    toolMessages, setToolMessages,
-    streamingText, setStreamingText,
-    isThinking, setIsThinking,
+    tabs,
+    activeTabId,
+    setActiveTabId,
+    addTab,
+    setTabs,
+    sessionId,
+    setSessionId,
+    userMessages,
+    setUserMessages,
+    assistantMessages,
+    setAssistantMessages,
+    toolMessages,
+    setToolMessages,
+    streamingText: "",
+    setStreamingText: () => {},
+    isThinking,
+    setIsThinking,
     messages,
-    sessions, setSessions,
-    queueLength, setQueueLength,
+    sessions,
+    setSessions,
+    queueLength,
+    setQueueLength,
   };
 
   return <ChatCtx.Provider value={value}>{children}</ChatCtx.Provider>;

@@ -8,6 +8,7 @@ import { useVoice } from "../hooks/useVoice";
 import AgentAvatar from "../components/agents/AgentAvatar";
 import { BashTool, EditTool, SearchTool, PlanTool } from "../components/tools/ToolCards";
 import ThinkingFace from "../components/ThinkingFace";
+import ChatTabs from "../components/ChatTabs";
 import SmartSuggestions from "../components/SmartSuggestions";
 import { getProviderLogo } from "../components/ProviderIcon";
 
@@ -114,7 +115,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         variant={msg.oldContent ? "edit" : "write"}
         filePath={msg.filePath} oldContent={msg.oldContent} newContent={msg.newContent} />;
     }
-    if (tn === "search" || tn === "grep") return <SearchTool state={msg.toolState === "searching" ? "searching" : "done"} query={msg.query || msg.content} results={msg.searchResults} />;
+    if (tn === "search" || tn === "grep") return <SearchTool state={msg.toolState === "searching" ? "searching" : "done"} query={msg.query || msg.content} results={msg.searchResults as Array<{ title: string; source: string; date?: string }> | undefined} />;
     if (tn === "plan") return <PlanTool state={msg.toolState === "pending" ? "pending" : "idle"} plan={{ id: msg.filePath, title: msg.planTitle || msg.content, summary: msg.planSummary }} />;
   }
 
@@ -223,10 +224,16 @@ export default function Chat() {
   const [handsFree, setHandsFree] = useState(false);
   const voice = useVoice({
     onTranscript: (text) => {
+      // Don't accept messages if stopped
+      if (generationStoppedRef.current) return;
       // Queue voice messages same as text
       if (wsIsThinking || localStreamingRef.current) {
-        setMessageQueue(prev => [...prev, { text, ts: Date.now() }]);
-        chatCtx.setQueueLength(messageQueue.length + 1);
+        chatCtx.setUserMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", content: text, ts: Date.now() }]);
+        setMessageQueue(prev => {
+          const updated = [...prev, { text, ts: Date.now() }];
+          chatCtx.setQueueLength(updated.length);
+          return updated;
+        });
       } else {
         chatCtx.setUserMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", content: text, ts: Date.now() }]);
         sendMessage(text);
@@ -267,7 +274,47 @@ export default function Chat() {
     }
   }, [wsAssistantMessages]);
 
-// Helper for array comparison
+// ── Context Usage Tracker ───────────────────────────────────────────────
+function estimateTokens(text: string): number {
+  // Rough estimate: 1 token ≈ 4 characters for English text
+  return Math.ceil(text.length / 4);
+}
+
+function ContextIndicator({ userMessages, assistantMessages, maxTokens = 8192 }: { 
+  userMessages: Array<{ content: string }>; 
+  assistantMessages: Array<{ content: string }>;
+  maxTokens?: number;
+}) {
+  const [usedTokens, setUsedTokens] = useState(0);
+  const [percentage, setPercentage] = useState(0);
+
+  useEffect(() => {
+    const total = userMessages.reduce((s, m) => s + estimateTokens(m.content), 0) +
+                  assistantMessages.reduce((s, m) => s + estimateTokens(m.content), 0);
+    setUsedTokens(total);
+    setPercentage(Math.min(100, Math.round((total / maxTokens) * 100)));
+  }, [userMessages, assistantMessages, maxTokens]);
+
+  const getColor = () => {
+    if (percentage >= 90) return "text-alba-error";
+    if (percentage >= 70) return "text-alba-warn";
+    return "text-alba-success";
+  };
+
+  return (
+    <div className="flex items-center gap-2 text-[10px]">
+      <span className={`px-1.5 py-0.5 rounded-full ${getColor()} bg-alba-bg/50`}>
+        Context: {usedTokens} / {maxTokens}
+      </span>
+      <div className="w-12 h-1 bg-alba-border rounded-full overflow-hidden">
+        <div className={`h-full transition-all ${percentage >= 90 ? "bg-alba-error" : percentage >= 70 ? "bg-alba-warn" : "bg-alba-success"}`}
+          style={{ width: `${percentage}%` }} />
+      </div>
+    </div>
+  );
+}
+
+// ── Helper for array comparison ───────────────────────────────────────────
 function arraysEqual(a: string[], b: string[]) {
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
@@ -300,10 +347,24 @@ function arraysEqual(a: string[], b: string[]) {
     const content = (text || input).trim();
     if (!content || !connected) return;
     
-    // If agent is busy and queue mode is queue, enqueue
+    // Handle /compact command - auto-compact without calling agent
+    if (content === "/compact" || content === "/c") {
+      chatCtx.setUserMessages([]);
+      chatCtx.setAssistantMessages([]);
+      chatCtx.setToolMessages([]);
+      setInput("");
+      return;
+    }
+    
+    // If agent is busy and queue mode is queue, enqueue (show message immediately)
     if ((wsIsThinking || isSending) && queueMode === "queue") {
-      setMessageQueue(prev => [...prev, { text: content, ts: Date.now() }]);
-      chatCtx.setQueueLength(messageQueue.length + 1);
+      // Add message to UI immediately for feedback
+      chatCtx.setUserMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", content, ts: Date.now() }]);
+      setMessageQueue(prev => {
+        const updated = [...prev, { text: content, ts: Date.now() }];
+        chatCtx.setQueueLength(updated.length);
+        return updated;
+      });
       setInput("");
       return;
     }
@@ -318,7 +379,7 @@ function arraysEqual(a: string[], b: string[]) {
     } else {
       sendMessage(content);
     }
-  }, [input, connected, sendMessage, wsIsThinking, isSending, queueMode, planMode, messageQueue.length]);
+  }, [input, connected, sendMessage, wsIsThinking, isSending, queueMode, planMode, chatCtx]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -331,10 +392,10 @@ function arraysEqual(a: string[], b: string[]) {
     localStreamingRef.current = "";
     setLocalStreamingText("");
     chatCtx.setIsThinking(false);
-    // Clear queue
+    // Clear queue completely
     setMessageQueue([]);
     chatCtx.setQueueLength(0);
-  }, [stopGeneration]);
+  }, [stopGeneration, chatCtx]);
 
   // ── Prevent turn_done from committing stopped text ────────────────────
   // This is handled by checking generationStoppedRef in the WS message processor
@@ -395,11 +456,11 @@ function arraysEqual(a: string[], b: string[]) {
     if (!wsIsThinking && !isSending && messageQueue.length > 0 && !generationStoppedRef.current) {
       const next = messageQueue[0];
       setMessageQueue(prev => prev.slice(1));
-      chatCtx.setQueueLength(messageQueue.length - 1);
-      chatCtx.setUserMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", content: next.text, ts: Date.now() }]);
+      chatCtx.setQueueLength(Math.max(0, messageQueue.length - 1));
+      // Send the message - it was already added to UI when queued
       sendMessage(next.text);
     }
-  }, [wsIsThinking, isSending, messageQueue.length]);
+  }, [wsIsThinking, isSending, messageQueue.length, chatCtx, sendMessage]);
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
@@ -415,6 +476,24 @@ function arraysEqual(a: string[], b: string[]) {
 
       {/* Chat area */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Chat Tabs */}
+        <ChatTabs
+          tabs={chatCtx.tabs}
+          activeTab={chatCtx.activeTabId}
+          onTabChange={chatCtx.setActiveTabId}
+          onTabAdd={chatCtx.addTab}
+          onTabClose={(id) => {
+            // Remove tab and switch to another
+            chatCtx.setTabs?.(chatCtx.tabs.filter(t => t.id !== id));
+            if (chatCtx.activeTabId === id && chatCtx.tabs.length > 1) {
+              chatCtx.setActiveTabId(chatCtx.tabs[0].id);
+            }
+          }}
+          onTabRename={(id, name) => {
+            chatCtx.setTabs?.(chatCtx.tabs.map(t => t.id === id ? { ...t, name } : t));
+          }}
+        />
+        
         {/* Header */}
         <header className="h-14 border-b border-alba-border px-4 flex items-center justify-between bg-alba-surface/50 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
@@ -435,6 +514,10 @@ function arraysEqual(a: string[], b: string[]) {
               {connectionState === "connected" ? "Connected" :
                connectionState === "connecting" ? `Connecting${reconnectCount > 0 ? ` (${reconnectCount})` : "..."}` : "Disconnected"}
             </span>
+            <ContextIndicator 
+              userMessages={chatCtx.userMessages} 
+              assistantMessages={chatCtx.assistantMessages as any} 
+            />
             {/* Queue indicator */}
             {messageQueue.length > 0 && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-alba-warn/10 text-alba-warn flex items-center gap-1">

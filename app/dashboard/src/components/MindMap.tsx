@@ -25,18 +25,26 @@ function useForceLayout(nodes: GraphNode[], edges: Array<{ source: string; targe
       return;
     }
 
-    // Initialize random positions
+    // Initialize positions in a circle for better distribution
     const initPos: Record<string, { x: number; y: number }> = {};
-    nodes.forEach(n => {
-      initPos[n.id] = { x: 50 + Math.random() * (width - 100), y: 50 + Math.random() * (height - 100) };
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(width, height) * 0.35;
+    
+    nodes.forEach((n, i) => {
+      const angle = (i / nodes.length) * 2 * Math.PI;
+      initPos[n.id] = { 
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius
+      };
     });
 
     // Run simple force simulation
     const pos = { ...initPos };
-    const repulsion = 0.001;
-    const attraction = 0.01;
-    const damping = 0.7;
-    const iterations = 100;
+    const repulsion = 0.005;
+    const attraction = 0.02;
+    const damping = 0.85;
+    const iterations = 200;
 
     for (let iter = 0; iter < iterations; iter++) {
       // Repulsion between all nodes
@@ -46,13 +54,13 @@ function useForceLayout(nodes: GraphNode[], edges: Array<{ source: string; targe
           const dx = pos[a.id].x - pos[b.id].x;
           const dy = pos[a.id].y - pos[b.id].y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 0.1;
-          const force = repulsion * repulsion / dist;
+          const force = repulsion * (repulsion / dist);
           pos[a.id].x += (dx / dist) * force;
           pos[a.id].y += (dy / dist) * force;
         });
       });
 
-      // Attraction along edges
+      // Attraction along edges (spring force)
       edges.forEach(e => {
         const a = pos[e.source];
         const b = pos[e.target];
@@ -60,17 +68,25 @@ function useForceLayout(nodes: GraphNode[], edges: Array<{ source: string; targe
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 0.1;
-        const force = attraction * (dist - 100);
+        const force = attraction * (dist - 150);
         a.x += (dx / dist) * force;
         a.y += (dy / dist) * force;
         b.x -= (dx / dist) * force;
         b.y -= (dy / dist) * force;
       });
 
+      // Center attraction (nodes pulled toward center)
+      nodes.forEach(n => {
+        const dx = centerX - pos[n.id].x;
+        const dy = centerY - pos[n.id].y;
+        pos[n.id].x += dx * 0.001;
+        pos[n.id].y += dy * 0.001;
+      });
+
       // Apply damping and bounds
       nodes.forEach(n => {
-        pos[n.id].x = Math.max(50, Math.min(width - 50, pos[n.id].x * damping + 100));
-        pos[n.id].y = Math.max(50, Math.min(height - 50, pos[n.id].y * damping + 100));
+        pos[n.id].x = Math.max(50, Math.min(width - 50, pos[n.id].x));
+        pos[n.id].y = Math.max(50, Math.min(height - 50, pos[n.id].y));
       });
     }
 

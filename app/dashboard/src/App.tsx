@@ -2,7 +2,7 @@ import { useState, useEffect, Component, ReactNode } from "react";
 import { Routes, Route, useLocation, Link, Navigate } from "react-router-dom";
 import {
   Home, MessageSquare, Bot, Brain, Settings, FolderOpen, Zap, Shield,
-  BarChart3, Calendar, Mic, Cpu, Palette, Terminal, ChevronRight
+  BarChart3, Calendar, Mic, Cpu, Palette, Terminal, ChevronRight, Rocket,
 } from "lucide-react";
 import { useAgent } from "./hooks/useAgent";
 import type { ConnectionState } from "./hooks/useAgent";
@@ -17,12 +17,16 @@ import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
 import Agents from "./pages/Agents";
 import Memory from "./pages/Memory";
+import MemoryGraph from "./pages/MemoryGraph";
 import SettingsPage from "./pages/Settings";
 import Providers from "./pages/Providers";
 import Files from "./pages/Files";
 import Analytics from "./pages/Analytics";
 import CalendarPage from "./pages/Calendar";
 import MindMap from "./components/MindMap";
+import TokenIntel from "./pages/TokenIntel";
+import StrategyLab from "./pages/StrategyLab";
+import Tools from "./pages/Tools";
 import { GraphProvider } from "./hooks/useGraph";
 
 
@@ -64,6 +68,8 @@ const mainNav = [
   { path: "/mindmap", icon: Zap, label: "Mind Map" },
   { path: "/calendar", icon: Calendar, label: "Calendar" },
   { path: "/analytics", icon: BarChart3, label: "Analytics" },
+  { path: "/token-intel", icon: Rocket, label: "Token Intel" },
+  { path: "/strategy", icon: BarChart3, label: "Strategy" },
   { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -242,6 +248,9 @@ export default function App() {
               <Route path="/settings/voice" element={<SettingsPage tab="voice" />} />
               <Route path="/settings/appearance" element={<SettingsPage tab="appearance" />} />
               <Route path="/settings/advanced" element={<SettingsPage tab="advanced" />} />
+              <Route path="/memory/graph" element={<MemoryGraph />} />
+              <Route path="/strategy" element={<StrategyLab />} />
+              <Route path="/tools" element={<Tools />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>

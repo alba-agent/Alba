@@ -60,7 +60,7 @@ export function useAgent() {
 
   // Subscribe to singleton WebSocket
   useEffect(() => {
-    const wsUrl = `ws://${window.location.host}/ws`;
+    const wsUrl = `/ws`;
     const handleMsg = (msg: WSMessage) => setMessages(prev => [...prev.slice(-200), msg]);
     const handleStatus = (c: boolean) => {
       setConnected(c);
