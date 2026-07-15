@@ -1,6 +1,6 @@
 {
   "name": "@albalink/agent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ALBA — standalone AI agent engine. Runs locally, extensible, zero cloud dependency.",
   "author": "ALBA",
   "license": "MIT",

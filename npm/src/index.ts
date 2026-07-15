@@ -35,6 +35,10 @@ export { AgentRunner }    from "./runner/AgentRunner.js";
 export { ModelClient, resolveModelConfig } from "./runner/ModelClient.js";
 export { ToolDispatcher } from "./runner/ToolDispatcher.js";
 
+// Chain Connector
+export { ChainConnector } from "./runner/ChainConnector.js";
+export type { ChainName, ChainConfig, NativeBalance, TokenBalance } from "./runner/ChainConnector.js";
+
 // Loader (for embedding the agent in other tools)
 export { loadExtension } from "./loader.js";
 

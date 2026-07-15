@@ -23,10 +23,21 @@ ALBA is a personal AI assistant that runs entirely on your machine. It features 
 
 ---
 
+## Quick Start
+
+```bash
+# Terminal mode
+npm install -g @albalink/agent
+albacli setup
+albacli
+```
+
+---
+
 ## Project Structure
 
 ```
-ALBA/
+local-agent/
 ├── npm/              ← @albalink/agent (engine, published to npm)
 ├── app/
 │   ├── server/       ← Express + WebSocket bridge
@@ -47,7 +58,7 @@ ALBA/
 | Package | Description |
 |---------|-------------|
 | `@albalink/agent` | Standalone agent engine (npm dependency) |
-| `@albalink/app` |Coming soon! Use Github Version. Full desktop web app (depends on @albalink/agent) |
+| `@albalink/app` | Full desktop app (depends on @albalink/agent) |
 
 ---
 
@@ -79,19 +90,6 @@ cd app/dashboard && npm run build
 cd ../..
 bash start.sh
 ```
-
-
----
-
-## Terminal mode
-
-```bash
-# Terminal mode
-npm install -g @albalink/agent
-albacli setup
-albacli
-```
-
 
 ---
 

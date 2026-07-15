@@ -6,8 +6,8 @@ A React dashboard and open SDK. Bring any provider — Anthropic, OpenAI, local 
 
 ## Links
 
-- **GitHub:** [github.com/alba-agent](https://github.com/alba-agent)
-- **Website:** [albaagent.xyz](https://albaagent.xyz)
+- **GitHub:** [github.com/albalink](https://github.com/albalink)
+- **Website:** [alba.souldotmd.xyz](https://albaagent.xyz)
 - **npm:** [@albalink/agent](https://www.npmjs.com/package/@albalink/agent)
 
 ---
